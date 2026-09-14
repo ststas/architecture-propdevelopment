@@ -1,0 +1,52 @@
+# Сетевые политики для namespace network-policies.
+#
+# Изолируют API-сервисы от посторонних подов:
+# - back-end-api принимает трафик только от front-end;
+# - admin-back-end-api принимает трафик только от admin-front-end.
+#
+# Кросс-трафик (front-end -> admin-back-end-api, admin-front-end -> back-end-api)
+# и трафик от любых других подов — запрещён по умолчанию, так как любой под,
+# выбранный хотя бы одной NetworkPolicy для Ingress, теряет неявный allow-all
+# и получает доступ только по явным правилам ниже.
+#
+# Трафик "в обе стороны" (запрос/ответ) обеспечивается автоматически отслеживанием
+# состояния соединений (connection tracking) — отдельные Egress-правила не нужны.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: non-admin-api-allow
+  namespace: network-policies
+spec:
+  podSelector:
+    matchLabels:
+      role: back-end-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: front-end
+      ports:
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: admin-api-allow
+  namespace: network-policies
+spec:
+  podSelector:
+    matchLabels:
+      role: admin-back-end-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: admin-front-end
+      ports:
+        - protocol: TCP
+          port: 80

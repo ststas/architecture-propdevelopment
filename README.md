@@ -44,3 +44,20 @@ bash Task4/bind-roles.sh     # связывает роли с группами �
 | Создание ролей         | Namespace по доменам + 4 ClusterRole.                                 | [Task4/create-roles.sh](Task4/create-roles.sh) |
 | Создание пользователей | 3 пользователя с сертификатами, подписанными CA Minikube.             | [Task4/create-users.sh](Task4/create-users.sh) |
 | Привязка ролей         | ClusterRoleBinding/RoleBinding, связывающие роли с группами.          | [Task4/bind-roles.sh](Task4/bind-roles.sh)     |
+
+### Задание 5. Управление трафиком внутри кластера Kubertnetes
+
+Для пятого задания в namespace `network-policies` развёрнуты четыре сервиса на Nginx (`front-end`, `back-end-api`, `admin-front-end`, `admin-back-end-api`) и настроены сетевые политики, изолирующие API-сервисы: `back-end-api` принимает трафик только от `front-end`, `admin-back-end-api` — только от `admin-front-end`. Проверено вживую на кластере с Calico CNI (см. флаг `--cni=calico` в разделе «Задание 4») — без метки трафик заблокирован к обоим API, с нужной ролью проходит только к своей паре.
+
+```bash
+kubectl create namespace network-policies
+kubectl run front-end-app --image=nginx --labels role=front-end --expose --port 80 -n network-policies
+kubectl run back-end-api-app --image=nginx --labels role=back-end-api --expose --port 80 -n network-policies
+kubectl run admin-front-end-app --image=nginx --labels role=admin-front-end --expose --port 80 -n network-policies
+kubectl run admin-back-end-api-app --image=nginx --labels role=admin-back-end-api --expose --port 80 -n network-policies
+kubectl apply -f Task5/network-policies.yaml
+```
+
+| Документ         | Описание                                                                                                        | Файл                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Сетевые политики | Две `NetworkPolicy` (по одной на каждый API-сервис), разрешающие ingress только от соответствующего UI-сервиса. | [Task5/network-policies.yaml](Task5/network-policies.yaml) |
