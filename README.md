@@ -25,3 +25,22 @@
 | Диаграмма контекста   | Контекст новых функций умного дома: собственник, гость/посетитель, партнёрская платформа.               | [Task3/context-diagram.drawio](Task3/context-diagram.drawio)                   | [Task3/context-diagram.png](Task3/context-diagram.png)                   |
 | Диаграмма контейнеров | Обновлённая диаграмма с новым сервисом `smart-home-gateway`, его БД и партнёрской системой.             | [Task3/PropDevelopment_С4_model.drawio](Task3/PropDevelopment_С4_model.drawio) | [Task3/PropDevelopment_С4_model.png](Task3/PropDevelopment_С4_model.png) |
 | Список требований     | Требования безопасности, протоколы аутентификации/авторизации и организация взаимодействия с партнёром. | [Task3/integration-requirements.md](Task3/integration-requirements.md)         | —                                                                        |
+
+### Задание 4. Защита доступа к кластеру Kubernetes
+
+Для четвёртого задания спроектирован ролевой доступ (RBAC) для пустого кластера Kubernetes: 4 роли (просмотр, настройка кластера, привилегированная роль с доступом к Secrets, роль разработчика домена) и разбивка на namespace по доменам компании (`sales`, `jku`, `finance`, `data`).
+
+**Порядок запуска:** сначала поднять пустой кластер — `minikube start --cni=calico` (флаг `--cni=calico` нужен для задания 5, где сетевые политики должны реально работать — дефолтный CNI Minikube их не исполняет), затем выполнить скрипты строго в этом порядке (из корня репозитория):
+
+```bash
+bash Task4/create-roles.sh   # создаёт namespace и роли
+bash Task4/create-users.sh   # создаёт пользователей (сертификаты, подписанные CA Minikube)
+bash Task4/bind-roles.sh     # связывает роли с группами пользователей
+```
+
+| Документ               | Описание                                                              | Файл                                           |
+| ---------------------- | --------------------------------------------------------------------- | ---------------------------------------------- |
+| Таблица ролей          | Роли, права и группы пользователей, привязанные к структуре компании. | [Task4/rbac_table.md](Task4/rbac_table.md)     |
+| Создание ролей         | Namespace по доменам + 4 ClusterRole.                                 | [Task4/create-roles.sh](Task4/create-roles.sh) |
+| Создание пользователей | 3 пользователя с сертификатами, подписанными CA Minikube.             | [Task4/create-users.sh](Task4/create-users.sh) |
+| Привязка ролей         | ClusterRoleBinding/RoleBinding, связывающие роли с группами.          | [Task4/bind-roles.sh](Task4/bind-roles.sh)     |
