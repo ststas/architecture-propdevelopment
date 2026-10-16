@@ -1,0 +1,132 @@
+# Сетевые политики для namespace network-policies.
+#
+# Модель: явный default deny на Ingress и Egress для всех подов namespace,
+# поверх которого точечно разрешены только нужные потоки. Без default deny
+# любой новый под в namespace по умолчанию был бы полностью открыт (implicit
+# allow-all) — сейчас же закрыто всё, что не разрешено явно.
+#
+# Разрешено:
+# - DNS-резолвинг для всех подов (иначе не заработает даже разрешённый трафик —
+#   сервисы обращаются друг к другу по DNS-имени);
+# - back-end-api принимает Ingress только от front-end, front-end может
+#   инициировать Egress только к back-end-api;
+# - admin-back-end-api принимает Ingress только от admin-front-end,
+#   admin-front-end может инициировать Egress только к admin-back-end-api.
+#
+# Обратный трафик (ответ на уже разрешённое входящее соединение) не требует
+# отдельного Egress-правила — это обеспечивается отслеживанием состояния
+# соединений (connection tracking) на уровне CNI (Calico).
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: network-policies
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: network-policies
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: non-admin-api-allow
+  namespace: network-policies
+spec:
+  podSelector:
+    matchLabels:
+      role: back-end-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: front-end
+      ports:
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: non-admin-front-end-egress-allow
+  namespace: network-policies
+spec:
+  podSelector:
+    matchLabels:
+      role: front-end
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              role: back-end-api
+      ports:
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: admin-api-allow
+  namespace: network-policies
+spec:
+  podSelector:
+    matchLabels:
+      role: admin-back-end-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: admin-front-end
+      ports:
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: admin-front-end-egress-allow
+  namespace: network-policies
+spec:
+  podSelector:
+    matchLabels:
+      role: admin-front-end
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              role: admin-back-end-api
+      ports:
+        - protocol: TCP
+          port: 80
